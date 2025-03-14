@@ -11,3 +11,7 @@ pub struct Fee {
     pub owner_withdraw_fee_numerator: u64,
     pub owner_withdraw_fee_denomiator: u64,
 }
+
+impl Fee {
+    pub const MAX_SIZE: usize = 6 * 8;
+}

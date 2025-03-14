@@ -1,14 +1,14 @@
+#![allow(unexpected_cfgs)]
+
 use anchor_lang::prelude::*;
 mod constants;
 mod curve;
 mod errors;
 mod instructions;
 mod state;
-mod utils;
 
-pub use constants::*;
-pub use instructions::*;
-pub use state::*;
+use instructions::*;
+use state::*;
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
@@ -17,11 +17,11 @@ pub mod exchange {
     use super::*;
 
     pub fn initialize(ctx: Context<InitializePool>, fees: Fee) -> Result<()> {
-        ctx.accounts.initialize(fees)
+        instructions::initialize(ctx, fees)
     }
 
     pub fn swap(ctx: Context<Swap>, source_amount: u64) -> Result<()> {
-        ctx.accounts.process_swap(source_amount)
+        instructions::swap(ctx, source_amount)
     }
 
     pub fn deposit_all_tokens_in(
@@ -30,15 +30,14 @@ pub mod exchange {
         max_token_a: u64,
         max_token_b: u64,
     ) -> Result<()> {
-        ctx.accounts
-            .deposit_all_tokens_in(pool_tokens, max_token_a, max_token_b)
+        instructions::deposit_all_tokens_in(ctx, pool_tokens, max_token_a, max_token_b)
     }
 
     pub fn deposit_single_token(
         ctx: Context<DepositSingleToken>,
         source_amount: u64,
     ) -> Result<()> {
-        ctx.accounts.deposit_single_token_in(source_amount)
+        instructions::deposit_single_token_in(ctx, source_amount)
     }
 
     pub fn withdraw_single_token_out(
@@ -46,6 +45,6 @@ pub mod exchange {
         source_amount: u64,
         fees: Fee,
     ) -> Result<()> {
-        ctx.accounts.withdraw_single_token_out(source_amount, fees)
+        instructions::withdraw_single_token_out(ctx, source_amount, fees)
     }
 }

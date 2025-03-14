@@ -8,8 +8,11 @@ pub enum ExchangeError {
     #[msg("Authority is Invalid")]
     InvalidAuthority,
 
-    #[msg("Mint in Invalid")]
+    #[msg("Mint is Invalid")]
     InvalidMint,
+
+    #[msg("Invalid Pool Token Account")]
+    InvalidPoolTokenAccount,
 
     #[msg("Not Enough Funds")]
     NotEnoughFunds,

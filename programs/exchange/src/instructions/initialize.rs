@@ -1,7 +1,6 @@
-use crate::constants::*;
+use crate::constants::{AUTHORITY, PREFIX};
 use crate::errors::*;
 use crate::pool::Pool;
-use crate::utils::*;
 use crate::Fee;
 
 use anchor_lang::prelude::*;
@@ -13,69 +12,110 @@ use anchor_spl::token::{Mint, TokenAccount};
 
 #[derive(Accounts)]
 pub struct InitializePool<'info> {
-    #[account(init,seeds=[INITIALIZE_POOL_TAG,pool.key().as_ref()],bump, payer=payer,space=Pool::MAX_SIZE)]
-    pub pool_authority: AccountInfo<'info>,
+    #[account(
+        init,
+        seeds=[
+            PREFIX,
+            token_a.mint.key().as_ref(),
+            token_b.mint.key().as_ref(),
+            creator.key().as_ref()
+        ],
+        bump,
+        payer=creator,
+        space=Pool::MAX_SIZE
+    )]
     pub pool: Account<'info, Pool>,
-    /// Non-zero token A account
+
+    #[account(
+        seeds=[
+            PREFIX,
+            pool.key().as_ref(),
+            AUTHORITY
+        ],
+        bump
+    )]
+    pub pool_authority: AccountInfo<'info>,
+
+    /// Non-zero token A accoun
     #[account(owner=pool_authority.key())]
     pub token_a: Account<'info, TokenAccount>,
-    /// Non-zero token B account
+
+    /// Non-zero token B accoun
     #[account(owner=pool_authority.key())]
     pub token_b: Account<'info, TokenAccount>,
-    #[account(owner=pool.key())]
+
+    // todo: check for mint address
+    #[account(
+        owner=pool.key(),
+        constraint=pool_mint.supply != 0 @ ExchangeError::PoolMintSupplyNotZero,
+        constraint=pool_mint.freeze_authority.is_some() @ ExchangeError::InvalidAuthority
+    )]
     pub pool_mint: Account<'info, Mint>,
-    /// pool token reciept as per the tokenA|B input
+
+    /// pool token reciept as per the token A|B inpu
     #[account(token::mint=pool_mint)]
     pub pool_token_reciept_account: Account<'info, TokenAccount>,
+
     #[account(token::mint=pool_mint)]
     pub pool_token_fee_account: Account<'info, TokenAccount>,
+
     #[account(mut)]
-    pub payer: Signer<'info>,
+    pub creator: Signer<'info>,
+
     pub system_program: Program<'info, System>,
+
     pub token_program: Program<'info, Token>,
 }
 
-impl<'info> InitializePool<'info> {
-    pub fn initialize(&mut self, fees: Fee) -> Result<()> {
-        let pool_key = self.pool.clone();
-        let pool = &mut self.pool;
-        pool.fees = fees;
-        pool.token_a = self.token_a.key();
-        pool.token_b = self.token_b.key();
-        pool.token_a_mint = self.token_a.mint;
-        pool.token_b_mint = self.token_b.mint;
-        if self.pool_mint.mint_authority.is_none()
-            || self.pool_mint.mint_authority.unwrap() != self.pool_authority.key()
-        {
-            return Err(ExchangeError::InvalidAuthority.into());
-        }
-        if self.pool_mint.supply != 0 {
-            return Err(ExchangeError::PoolMintSupplyNotZero.into());
-        }
-        if self.pool_mint.freeze_authority.is_some() {
-            return Err(ExchangeError::InvalidAuthority.into());
-        }
-        // assert close authority
-        // validate fees
-        let initial_supply: u64 = Pool::INITIAL_POOL_TOKEN_SUPPLY;
+pub fn initialize(ctx: Context<InitializePool>, fees: Fee) -> Result<()> {
+    let pool_mint = &ctx.accounts.pool_mint;
+    let pool_authority = &ctx.accounts.pool_authority;
 
-        let bump = get_bump(&[INITIALIZE_POOL_TAG, pool_key.key().as_ref()], &crate::ID);
-        pool.bump = bump;
+    let pool = &mut ctx.accounts.pool;
+    pool.fees = fees;
+    pool.token_a = ctx.accounts.token_a.key();
+    pool.token_b = ctx.accounts.token_b.key();
+    pool.token_a_mint = ctx.accounts.token_a.mint;
+    pool.token_b_mint = ctx.accounts.token_b.mint;
+    pool.mint = pool_mint.key();
+    pool.creator = ctx.accounts.creator.key();
 
-        let pool_key_ref = self.pool.key().as_ref().to_owned();
-        let signer_seeds = &[INITIALIZE_POOL_TAG, &pool_key_ref, &[bump]];
-        let signer = &[&signer_seeds[..]];
-
-        let cpi_accounts = MintTo {
-            mint: self.pool_mint.to_account_info(),
-            to: self.pool_token_reciept_account.to_account_info(),
-            authority: self.pool_authority.clone(),
-        };
-
-        let cpi_context =
-            CpiContext::new_with_signer(self.token_program.to_account_info(), cpi_accounts, signer);
-        mint_to(cpi_context, initial_supply)?;
-
-        Ok(())
+    if pool_mint.mint_authority.is_none()
+        || pool_mint.mint_authority.unwrap() != pool_authority.key()
+    {
+        return Err(ExchangeError::InvalidAuthority.into());
     }
+
+    // todo: validate fees
+
+    let initial_supply: u64 = Pool::INITIAL_POOL_TOKEN_SUPPLY;
+    let bump = ctx.bumps.pool;
+    let token_a_mint_key = ctx.accounts.token_a.mint.key();
+    let token_b_mint_key = ctx.accounts.token_b.mint.key();
+    let creator_key = ctx.accounts.creator.key();
+    pool.bump = bump;
+
+    let signer_seeds = &[
+        PREFIX,
+        token_a_mint_key.as_ref(),
+        token_b_mint_key.as_ref(),
+        creator_key.as_ref(),
+        &[bump],
+    ];
+    let signer = &[&signer_seeds[..]];
+
+    let cpi_accounts = MintTo {
+        mint: pool_mint.to_account_info(),
+        to: ctx.accounts.pool_token_reciept_account.to_account_info(),
+        authority: pool_authority.to_account_info(),
+    };
+
+    let cpi_context = CpiContext::new_with_signer(
+        ctx.accounts.token_program.to_account_info(),
+        cpi_accounts,
+        signer,
+    );
+    mint_to(cpi_context, initial_supply)?;
+
+    Ok(())
 }
