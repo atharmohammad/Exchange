@@ -28,11 +28,11 @@ pub fn calculate_swap_amounts(
     let source_amount_after_fee = source_amount.checked_sub(total_fee).unwrap();
 
     // invariant = (A*B)
-    let invariant = pool_source_amoun
+    let invariant = pool_source_amount
         .checked_mul(pool_destination_amount)
         .unwrap();
     // A + A'
-    let total_source_amount = pool_source_amoun
+    let total_source_amount = pool_source_amount
         .checked_add(source_amount_after_fee)
         .unwrap();
     // B - B' = invariant/(A+A');
@@ -40,19 +40,19 @@ pub fn calculate_swap_amounts(
         invariant.checked_ceil_div(total_source_amount).unwrap();
 
     // B' = B - invariant/(A+A')
-    let swapped_destination_amount = pool_destination_amoun
+    let swapped_destination_amount = pool_destination_amount
         .checked_sub(total_destination_amount)
         .unwrap();
 
     // A' = total_source - A
-    let swapped_source_amount = total_source_amoun
+    let swapped_source_amount = total_source_amount
         .checked_sub(pool_source_amount)
         .unwrap()
         .checked_add(total_fee)
         .unwrap();
 
     let new_pool_source_amount = source_amount.checked_add(swapped_source_amount).unwrap();
-    let new_pool_destination_amount = pool_destination_amoun
+    let new_pool_destination_amount = pool_destination_amount
         .checked_sub(swapped_destination_amount)
         .unwrap();
 
@@ -106,13 +106,13 @@ pub fn convert_pool_tokens_to_trade_tokens(
     pool_token_a: u128,
     pool_token_b: u128,
 ) -> Result<(u128, u128)> {
-    let token_a = pool_token_amoun
+    let token_a = pool_token_amount
         .checked_mul(pool_token_a)
         .unwrap()
         .checked_div(pool_token_supply)
         .unwrap();
 
-    let token_b = pool_token_amoun
+    let token_b = pool_token_amount
         .checked_mul(pool_token_b)
         .unwrap()
         .checked_div(pool_token_supply)
@@ -126,7 +126,7 @@ pub fn calculate_fee(
     fee_numerator: u64,
     fee_denominator: u64,
 ) -> Option<u128> {
-    let fee: u128 = source_amoun
+    let fee: u128 = source_amount
         .checked_mul(fee_numerator as u128)?
         .checked_div(fee_denominator as u128)?;
 

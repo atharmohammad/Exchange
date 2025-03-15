@@ -105,7 +105,7 @@ pub fn deposit_single_token_in(ctx: Context<DepositSingleToken>, source_amount: 
         ctx.accounts.pool_mint.supply as u128,
     )?;
 
-    // transfer the source amoun
+    // transfer the source amount
     let source_amount_transfer_accounts = Transfer {
         to: pool_source_token_account.to_account_info(),
         from: user_source_token_account.to_account_info(),
@@ -119,12 +119,15 @@ pub fn deposit_single_token_in(ctx: Context<DepositSingleToken>, source_amount: 
     transfer(source_amount_transfer_context, source_amount as u64)?;
 
     let pool_key = ctx.accounts.pool.key();
-    let bump = ctx.bumps.pool;
+    let signer_seeds = &[
+        PREFIX,
+        pool_key.as_ref(),
+        AUTHORITY,
+        &[ctx.bumps.pool_authority],
+    ];
 
-    let signer_seeds = &[PREFIX, &pool_key.as_ref(), &[bump]];
     let signer = &[&signer_seeds[..]];
-
-    // mint pool token propotional to deposited source amoun
+    // mint pool token propotional to deposited source amount
     let mint_pool_tokens_account = MintTo {
         to: user_source_token_account.to_account_info(),
         mint: ctx.accounts.pool_mint.to_account_info(),

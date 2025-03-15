@@ -43,16 +43,10 @@ pub struct Swap<'info> {
     )]
     pub pool_token_b_account: Account<'info, TokenAccount>,
 
-    #[account(
-        token::mint=source_mint,
-        owner=user.key()
-    )]
+    #[account(owner=user.key())]
     pub user_source_token_account: Account<'info, TokenAccount>,
 
-    #[account(
-        token::mint=destination_mint,
-        owner=user.key()
-    )]
+    #[account(owner=user.key())]
     pub user_destination_token_account: Account<'info, TokenAccount>,
 
     #[account(
@@ -60,10 +54,6 @@ pub struct Swap<'info> {
         owner=pool.key()
     )]
     pub pool_mint: Account<'info, Mint>,
-
-    pub source_mint: Account<'info, Mint>,
-
-    pub destination_mint: Account<'info, Mint>,
 
     #[account(token::mint=pool_mint)]
     pub pool_token_fee_account: Account<'info, TokenAccount>,
@@ -78,14 +68,15 @@ pub struct Swap<'info> {
 
 pub fn swap(ctx: Context<Swap>, source_amount: u64) -> Result<()> {
     let pool = &ctx.accounts.pool;
-    let source_mint_account = &ctx.accounts.source_mint;
     let pool_mint_account = &ctx.accounts.pool_mint;
+    let source_mint = &ctx.accounts.user_source_token_account.mint;
+    let destination_mint = &ctx.accounts.user_destination_token_account.mint;
 
     if ctx.accounts.user_source_token_account.amount < source_amount {
         return Err(ExchangeError::NotEnoughFunds.into());
     }
 
-    let trade_direction = if cmp_pubkeys(&source_mint_account.key(), &pool.token_a_mint) {
+    let trade_direction = if cmp_pubkeys(&source_mint.key(), &pool.token_a_mint) {
         TradeDirection::TokenAtoB
     } else {
         TradeDirection::TokenBtoA
@@ -102,13 +93,12 @@ pub fn swap(ctx: Context<Swap>, source_amount: u64) -> Result<()> {
         ),
     };
 
-    if !cmp_pubkeys(
-        &pool_source_token_account.mint.key(),
-        &ctx.accounts.source_mint.key(),
-    ) || !cmp_pubkeys(
-        &pool_destination_token_account.mint.key(),
-        &ctx.accounts.destination_mint.key(),
-    ) {
+    if !cmp_pubkeys(&pool_source_token_account.mint.key(), &source_mint)
+        || !cmp_pubkeys(
+            &pool_destination_token_account.mint.key(),
+            &destination_mint,
+        )
+    {
         return Err(ExchangeError::InvalidMint.into());
     }
 
@@ -142,14 +132,21 @@ pub fn swap(ctx: Context<Swap>, source_amount: u64) -> Result<()> {
 
     let destination_transfer_accounts = Transfer {
         authority: ctx.accounts.pool_authority.to_account_info(),
-        to: ctx.accounts.user_destination_token_accoun.to_account_info(),
+        to: ctx
+            .accounts
+            .user_destination_token_account
+            .to_account_info(),
         from: pool_destination_token_account.to_account_info(),
     };
 
     let pool_key = ctx.accounts.pool.key();
-    let bump = ctx.bumps.pool;
+    let signer_seeds = &[
+        PREFIX,
+        pool_key.as_ref(),
+        AUTHORITY,
+        &[ctx.bumps.pool_authority],
+    ];
 
-    let signer_seeds = &[PREFIX, &pool_key.as_ref(), &[bump]];
     let signer = &[&signer_seeds[..]];
 
     let destination_transfer_context = CpiContext::new_with_signer(
