@@ -160,7 +160,7 @@ pub fn swap(ctx: Context<Swap>, source_amount: u64) -> Result<()> {
     )?;
 
     // mint the pool_tokens propotional to owner_fee to pool_fee_accoun
-    let pool_tokens = calculate_withdraw_single_token_out(
+    let pool_tokens = calculate_pool_tokens_propotional_to_single_token_redeemed(
         owner_fee,
         new_pool_source_amount,
         pool_mint_account.supply as u128,

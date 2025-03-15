@@ -28,4 +28,7 @@ pub enum ExchangeError {
 
     #[msg("Numeral Overflow")]
     NumeralOverflow,
+
+    #[msg("Failed To Create Precise Number")]
+    FailedToCreatePreciseNumber,
 }
