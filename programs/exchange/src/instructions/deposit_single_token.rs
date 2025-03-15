@@ -99,7 +99,7 @@ pub fn deposit_single_token_in(ctx: Context<DepositSingleToken>, source_amount: 
         )
     };
 
-    let user_source_pool_tokens = calculate_deposit_single_token_in(
+    let user_source_pool_tokens = calculate_pool_tokens_propotional_to_single_token_deposit(
         source_amount as u128,
         pool_source_token_account.amount as u128,
         ctx.accounts.pool_mint.supply as u128,

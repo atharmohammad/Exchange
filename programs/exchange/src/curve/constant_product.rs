@@ -22,7 +22,7 @@ pub fn calculate_swap_amounts(
         fee.owner_trade_fee_numerator,
         fee.owner_trade_fee_denominator,
     )
-    .unwrap();
+    .ok_or(ExchangeError::NumeralOverflow)?;
 
     let total_fee = trading_fee
         .checked_add(owner_fee)
@@ -40,8 +40,9 @@ pub fn calculate_swap_amounts(
         .checked_add(source_amount_after_fee)
         .ok_or(ExchangeError::NumeralOverflow)?;
     // B - B' = invariant/(A+A');
-    let (total_destination_amount, total_source_amount) =
-        invariant.checked_ceil_div(total_source_amount).unwrap();
+    let (total_destination_amount, total_source_amount) = invariant
+        .checked_ceil_div(total_source_amount)
+        .ok_or(ExchangeError::NumeralOverflow)?;
 
     // B' = B - invariant/(A+A')
     let swapped_destination_amount = pool_destination_amount
@@ -57,7 +58,7 @@ pub fn calculate_swap_amounts(
 
     let new_pool_source_amount = source_amount
         .checked_add(swapped_source_amount_with_fee)
-        .unwrap();
+        .ok_or(ExchangeError::NumeralOverflow)?;
     let new_pool_destination_amount = pool_destination_amount
         .checked_sub(swapped_destination_amount)
         .ok_or(ExchangeError::NumeralOverflow)?;
@@ -72,38 +73,99 @@ pub fn calculate_swap_amounts(
     ))
 }
 
-pub fn calculate_deposit_single_token_in(
+/*
+    P ~ sqrt(A * B)
+    P_new = [ P * sqrt((A' +  A) * (B' + B)) / sqrt(A * B) ]
+    P' = P_new - P
+    P' = [ P * sqrt((A' + A) * (B' + B)) / sqrt(A * B) ] - P
+    P' = P * [ sqrt([(A'+ A) * (B' + B)] / A * B ) - 1 ]
+
+    When deposit single token, B' = 0
+
+    P' = P * [sqrt((A'+ A) / A) - 1]
+*/
+
+pub fn calculate_pool_tokens_propotional_to_single_token_deposit(
     source_amount: u128,
     pool_source_amount: u128,
     pool_supply: u128,
 ) -> Result<u128> {
-    let source_amount = PreciseNumber::new(source_amount).unwrap();
-    let pool_source_amount = PreciseNumber::new(pool_source_amount).unwrap();
-    let pool_supply = PreciseNumber::new(pool_supply).unwrap();
-    let one = PreciseNumber::new(1).unwrap();
-    let ratio_deposited = one
-        .checked_add(&source_amount.checked_div(&pool_source_amount).unwrap())
-        .unwrap();
-    let ratio = ratio_deposited.sqrt().unwrap().checked_sub(&one).unwrap();
-    let result_amount = pool_supply.checked_mul(&ratio).unwrap();
-    Ok(result_amount.to_imprecise().unwrap())
+    let source_amount =
+        PreciseNumber::new(source_amount).ok_or(ExchangeError::FailedToCreatePreciseNumber)?;
+    let pool_source_amount =
+        PreciseNumber::new(pool_source_amount).ok_or(ExchangeError::FailedToCreatePreciseNumber)?;
+
+    let pool_supply =
+        PreciseNumber::new(pool_supply).ok_or(ExchangeError::FailedToCreatePreciseNumber)?;
+    let one = PreciseNumber::new(1).ok_or(ExchangeError::FailedToCreatePreciseNumber)?;
+
+    let new_pool_source_amount = source_amount
+        .checked_add(&pool_source_amount)
+        .ok_or(ExchangeError::NumeralOverflow)?;
+    let ratio_deposited = new_pool_source_amount
+        .checked_div(&pool_source_amount)
+        .ok_or(ExchangeError::NumeralOverflow)?;
+
+    let ratio = ratio_deposited
+        .sqrt()
+        .ok_or(ExchangeError::NumeralOverflow)?
+        .checked_sub(&one)
+        .ok_or(ExchangeError::NumeralOverflow)?;
+    let result_amount = pool_supply
+        .checked_mul(&ratio)
+        .ok_or(ExchangeError::NumeralOverflow)?;
+
+    let propotional_pool_tokens = result_amount
+        .to_imprecise()
+        .ok_or(ExchangeError::NumeralOverflow)?;
+    Ok(propotional_pool_tokens)
 }
 
-pub fn calculate_withdraw_single_token_out(
-    source_amount: u128,
-    new_pool_source_amount: u128,
-    result_supply: u128,
-) -> Result<u128> {
-    let source_amount = PreciseNumber::new(source_amount).unwrap();
-    let source_amount_supply = PreciseNumber::new(new_pool_source_amount).unwrap();
-    let result_supply = PreciseNumber::new(result_supply).unwrap();
+/*
+    P ~ sqrt(A * B)
+    P_new = [ P * sqrt((A -  A) * (B - B')) / sqrt(A * B) ]
+    P' = P_new - P
+    P' = [ P * sqrt((A - A') * (B - B')) / sqrt(A * B) ] - P
+    P' = P * [ sqrt([(A - A') * (B - B')] / A * B ) - 1 ]
 
-    let ratio_redeemed = source_amount.checked_div(&source_amount_supply).unwrap();
-    let one = PreciseNumber::new(1).unwrap();
-    let ratio_redeemed = one.checked_sub(&ratio_redeemed).unwrap();
-    let ratio = one.checked_sub(&ratio_redeemed.sqrt().unwrap()).unwrap();
-    let result_amount = result_supply.checked_mul(&ratio).unwrap();
-    Ok(result_amount.to_imprecise().unwrap())
+    When withdraw single token, B' = 0
+
+    P' = P * [sqrt((A - A') / A) - 1]
+*/
+
+pub fn calculate_pool_tokens_propotional_to_single_token_redeemed(
+    source_amount: u128,
+    pool_source_amount: u128,
+    pool_supply: u128,
+) -> Result<u128> {
+    let source_amount =
+        PreciseNumber::new(source_amount).ok_or(ExchangeError::FailedToCreatePreciseNumber)?;
+    let pool_source_amount =
+        PreciseNumber::new(pool_source_amount).ok_or(ExchangeError::FailedToCreatePreciseNumber)?;
+    let pool_supply =
+        PreciseNumber::new(pool_supply).ok_or(ExchangeError::FailedToCreatePreciseNumber)?;
+    let one = PreciseNumber::new(1).ok_or(ExchangeError::FailedToCreatePreciseNumber)?;
+
+    let new_pool_source_amount = pool_source_amount
+        .checked_sub(&source_amount)
+        .ok_or(ExchangeError::NumeralOverflow)?;
+    let ratio_redeemed = new_pool_source_amount
+        .checked_div(&pool_source_amount)
+        .ok_or(ExchangeError::NumeralOverflow)?;
+
+    let ratio = ratio_redeemed
+        .sqrt()
+        .ok_or(ExchangeError::NumeralOverflow)?
+        .checked_sub(&one)
+        .ok_or(ExchangeError::NumeralOverflow)?;
+    let result_amount = pool_supply
+        .checked_mul(&ratio)
+        .ok_or(ExchangeError::NumeralOverflow)?;
+
+    let propotional_pool_tokens = result_amount
+        .to_imprecise()
+        .ok_or(ExchangeError::NumeralOverflow)?;
+    Ok(propotional_pool_tokens)
 }
 
 pub fn convert_pool_tokens_to_trade_tokens(

@@ -110,7 +110,7 @@ pub fn withdraw_single_token_out(
         ),
     };
 
-    let burn_pool_token_amount = calculate_withdraw_single_token_out(
+    let burn_pool_token_amount = calculate_pool_tokens_propotional_to_single_token_redeemed(
         source_amount as u128,
         pool_source_token_account.amount as u128,
         pool_mint.supply as u128,
