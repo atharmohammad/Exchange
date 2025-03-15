@@ -25,4 +25,7 @@ pub enum ExchangeError {
 
     #[msg("Exceeded the slippage on trade")]
     SlippageExceeded,
+
+    #[msg("Numeral Overflow")]
+    NumeralOverflow,
 }

@@ -1,8 +1,8 @@
-use crate::fee::*;
+use crate::{errors::ExchangeError, fee::*};
 use anchor_lang::Result;
 use spl_math::{checked_ceil_div::CheckedCeilDiv, precise_number::PreciseNumber};
 
-// Constant product swap : (A+A') * (B-B') = invarian
+// Constant product swap : (A+A') * (B-B') = invariant
 pub fn calculate_swap_amounts(
     source_amount: u128,
     pool_source_amount: u128,
@@ -15,7 +15,7 @@ pub fn calculate_swap_amounts(
         fee.trade_fee_numerator,
         fee.trade_fee_denominator,
     )
-    .unwrap();
+    .ok_or(ExchangeError::NumeralOverflow)?;
 
     let owner_fee = calculate_fee(
         source_amount,
@@ -24,17 +24,21 @@ pub fn calculate_swap_amounts(
     )
     .unwrap();
 
-    let total_fee = trading_fee.checked_add(owner_fee).unwrap();
-    let source_amount_after_fee = source_amount.checked_sub(total_fee).unwrap();
+    let total_fee = trading_fee
+        .checked_add(owner_fee)
+        .ok_or(ExchangeError::NumeralOverflow)?;
+    let source_amount_after_fee = source_amount
+        .checked_sub(total_fee)
+        .ok_or(ExchangeError::NumeralOverflow)?;
 
     // invariant = (A*B)
     let invariant = pool_source_amount
         .checked_mul(pool_destination_amount)
-        .unwrap();
+        .ok_or(ExchangeError::NumeralOverflow)?;
     // A + A'
     let total_source_amount = pool_source_amount
         .checked_add(source_amount_after_fee)
-        .unwrap();
+        .ok_or(ExchangeError::NumeralOverflow)?;
     // B - B' = invariant/(A+A');
     let (total_destination_amount, total_source_amount) =
         invariant.checked_ceil_div(total_source_amount).unwrap();
@@ -42,24 +46,26 @@ pub fn calculate_swap_amounts(
     // B' = B - invariant/(A+A')
     let swapped_destination_amount = pool_destination_amount
         .checked_sub(total_destination_amount)
-        .unwrap();
+        .ok_or(ExchangeError::NumeralOverflow)?;
 
     // A' = total_source - A
-    let swapped_source_amount = total_source_amount
+    let swapped_source_amount_with_fee = total_source_amount
         .checked_sub(pool_source_amount)
         .unwrap()
         .checked_add(total_fee)
-        .unwrap();
+        .ok_or(ExchangeError::NumeralOverflow)?;
 
-    let new_pool_source_amount = source_amount.checked_add(swapped_source_amount).unwrap();
+    let new_pool_source_amount = source_amount
+        .checked_add(swapped_source_amount_with_fee)
+        .unwrap();
     let new_pool_destination_amount = pool_destination_amount
         .checked_sub(swapped_destination_amount)
-        .unwrap();
+        .ok_or(ExchangeError::NumeralOverflow)?;
 
     Ok((
         new_pool_source_amount,
         new_pool_destination_amount,
-        swapped_source_amount,
+        swapped_source_amount_with_fee,
         swapped_destination_amount,
         owner_fee,
         trading_fee,
