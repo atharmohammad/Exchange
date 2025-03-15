@@ -11,6 +11,9 @@ pub enum ExchangeError {
     #[msg("Mint is Invalid")]
     InvalidMint,
 
+    #[msg("Same Token Mints")]
+    SameTokenMints,
+
     #[msg("Invalid Pool Token Account")]
     InvalidPoolTokenAccount,
 

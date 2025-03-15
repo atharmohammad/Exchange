@@ -130,11 +130,14 @@ pub fn deposit_all_tokens_in(
     };
 
     let pool_key = ctx.accounts.pool.key();
-    let bump = ctx.bumps.pool;
+    let signer_seeds = &[
+        PREFIX,
+        pool_key.as_ref(),
+        AUTHORITY,
+        &[ctx.bumps.pool_authority],
+    ];
 
-    let signer_seeds = &[PREFIX, &pool_key.as_ref(), &[bump]];
     let signer = &[&signer_seeds[..]];
-
     let mint_to_context = CpiContext::new_with_signer(
         ctx.accounts.token_program.to_account_info(),
         mint_to_accounts,

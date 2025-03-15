@@ -119,11 +119,14 @@ pub fn withdraw_single_token_out(
     // Todo: transfer withdraw fee
 
     let pool_key = ctx.accounts.pool.key();
-    let bump = ctx.bumps.pool;
+    let signer_seeds = &[
+        PREFIX,
+        pool_key.as_ref(),
+        AUTHORITY,
+        &[ctx.bumps.pool_authority],
+    ];
 
-    let signer_seeds = &[PREFIX, &pool_key.as_ref(), &[bump]];
     let signer = &[&signer_seeds[..]];
-
     // burn the pool tokens
     let burn_user_pool_tokens_accounts = Burn {
         mint: pool_mint.to_account_info(),
@@ -138,7 +141,7 @@ pub fn withdraw_single_token_out(
 
     burn(burn_pool_tokens_context, burn_pool_token_amount as u64)?;
 
-    // transfer the withdrawal source amoun
+    // transfer the withdrawal source amount
     let source_amount_transfer_accounts = Transfer {
         to: ctx.accounts.user_source_token_account.to_account_info(),
         from: pool_source_token_account.to_account_info(),
