@@ -81,14 +81,14 @@ pub struct DepositAllTokens<'info> {
 
 pub fn deposit_all_tokens_in(
     ctx: Context<DepositAllTokens>,
-    pool_tokens: u64,
+    min_pool_tokens: u64,
     max_token_a: u64,
     max_token_b: u64,
 ) -> Result<()> {
     let pool_mint_account = &ctx.accounts.pool_mint;
 
-    let (token_a_amount, token_b_amount) = convert_pool_tokens_to_trade_tokens(
-        pool_tokens as u128,
+    let (token_a_amount, token_b_amount) = calculate_trade_tokens_propotional_to_pool_tokens(
+        min_pool_tokens as u128,
         pool_mint_account.supply as u128,
         ctx.accounts.pool_token_a_account.amount as u128,
         ctx.accounts.pool_token_b_account.amount as u128,
@@ -143,7 +143,7 @@ pub fn deposit_all_tokens_in(
         mint_to_accounts,
         signer,
     );
-    mint_to(mint_to_context, pool_tokens)?;
+    mint_to(mint_to_context, min_pool_tokens)?;
 
     Ok(())
 }
