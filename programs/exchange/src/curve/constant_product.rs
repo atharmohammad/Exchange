@@ -168,23 +168,30 @@ pub fn calculate_pool_tokens_propotional_to_single_token_redeemed(
     Ok(propotional_pool_tokens)
 }
 
-pub fn convert_pool_tokens_to_trade_tokens(
-    pool_token_amount: u128,
+/*
+    Using min_pool_token_amount to calculate the token_a and token_b it represents in the pool
+
+    token_a = (P_min / P) * P_token_a
+    token_b = (P_min / P) * P_token_b
+
+*/
+pub fn calculate_trade_tokens_propotional_to_pool_tokens(
+    min_pool_token_amount: u128,
     pool_token_supply: u128,
     pool_token_a: u128,
     pool_token_b: u128,
 ) -> Result<(u128, u128)> {
-    let token_a = pool_token_amount
+    let token_a = min_pool_token_amount
         .checked_mul(pool_token_a)
-        .unwrap()
+        .ok_or(ExchangeError::NumeralOverflow)?
         .checked_div(pool_token_supply)
-        .unwrap();
+        .ok_or(ExchangeError::NumeralOverflow)?;
 
-    let token_b = pool_token_amount
+    let token_b = min_pool_token_amount
         .checked_mul(pool_token_b)
-        .unwrap()
+        .ok_or(ExchangeError::NumeralOverflow)?
         .checked_div(pool_token_supply)
-        .unwrap();
+        .ok_or(ExchangeError::NumeralOverflow)?;
 
     Ok((token_a, token_b))
 }
