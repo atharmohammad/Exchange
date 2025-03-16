@@ -33,21 +33,21 @@ pub struct Swap<'info> {
     /// Non-zero token A accoun
     #[account(
         address=pool.token_a @ ExchangeError::InvalidPoolTokenAccount,
-        owner=pool_authority.key()
+        token::authority=pool_authority.key()
     )]
     pub pool_token_a_account: Account<'info, TokenAccount>,
 
     /// Non-zero token B accoun
     #[account(
         address=pool.token_b @ ExchangeError::InvalidPoolTokenAccount,
-        owner=pool_authority.key()
+        token::authority=pool_authority.key()
     )]
     pub pool_token_b_account: Account<'info, TokenAccount>,
 
-    #[account(owner=user.key())]
+    #[account(token::authority=user.key())]
     pub user_source_token_account: Account<'info, TokenAccount>,
 
-    #[account(owner=user.key())]
+    #[account(token::authority=user.key())]
     pub user_destination_token_account: Account<'info, TokenAccount>,
 
     #[account(

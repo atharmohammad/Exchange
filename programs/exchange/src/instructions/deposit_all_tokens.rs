@@ -26,51 +26,56 @@ pub struct DepositAllTokens<'info> {
         ],
         bump
     )]
-    pub pool: Account<'info, Pool>,
+    pub pool: Box<Account<'info, Pool>>,
 
-    /// Non-zero token A accoun
+    /// Non-zero token A account
     #[account(
+        mut,
         address=pool.token_a @ ExchangeError::InvalidPoolTokenAccount,
-        owner=pool_authority.key()
+        token::authority=pool_authority.key()
     )]
     pub pool_token_a_account: Account<'info, TokenAccount>,
 
-    /// Non-zero token B accoun
+    /// Non-zero token B account
     #[account(
+        mut,
         address=pool.token_b @ ExchangeError::InvalidPoolTokenAccount,
-        owner=pool_authority.key()
+        token::authority=pool_authority.key()
     )]
     pub pool_token_b_account: Account<'info, TokenAccount>,
 
     #[account(
-        token::mint=token_a_mint,
-        owner=user.key()
+        mut,
+        token::mint=pool.token_a_mint,
+        token::authority=user.key()
     )]
     pub user_token_a_account: Account<'info, TokenAccount>,
 
     #[account(
-        token::mint=token_b_mint,
-        owner=user.key()
+        mut,
+        token::mint=pool.token_b_mint,
+        token::authority=user.key()
     )]
     pub user_token_b_account: Account<'info, TokenAccount>,
 
-    #[account(token::mint=pool_mint)]
-    pub pool_token_recepient_account: Account<'info, TokenAccount>,
+    #[account(
+        mut,
+        token::mint=pool_mint,
+        token::authority=user.key()
+    )]
+    pub user_pool_token_receipt: Account<'info, TokenAccount>,
 
     #[account(
+        mut,
         address=pool.mint @ ExchangeError::InvalidMint,
-        owner=pool.key()
+        mint::authority = pool_authority,
+        mint::freeze_authority = pool_authority,
+        mint::decimals = 9
     )]
     pub pool_mint: Account<'info, Mint>,
 
-    #[account(address=pool.token_a_mint @ ExchangeError::InvalidMint)]
-    pub token_a_mint: Account<'info, Mint>,
-
-    #[account(address=pool.token_b_mint @ ExchangeError::InvalidMint)]
-    pub token_b_mint: Account<'info, Mint>,
-
     #[account(token::mint=pool_mint)]
-    pub pool_token_fee_account: Account<'info, TokenAccount>,
+    pub pool_token_fee_account: Box<Account<'info, TokenAccount>>,
 
     #[account(mut)]
     pub user: Signer<'info>,
@@ -125,7 +130,7 @@ pub fn deposit_all_tokens_in(
     transfer(transfer_token_b_context, token_b_amount as u64)?;
 
     let mint_to_accounts = MintTo {
-        to: ctx.accounts.pool_token_recepient_account.to_account_info(),
+        to: ctx.accounts.user_pool_token_receipt.to_account_info(),
         mint: ctx.accounts.pool_mint.to_account_info(),
         authority: ctx.accounts.pool_authority.to_account_info(),
     };

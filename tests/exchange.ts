@@ -2,7 +2,7 @@ import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { Exchange } from "../target/types/exchange";
 import { BN } from "bn.js";
-import { createMint, getAssociatedTokenAddressSync, getOrCreateAssociatedTokenAccount, MintLayout } from "@solana/spl-token";
+import { createMint, getAssociatedTokenAddressSync, getOrCreateAssociatedTokenAccount, MintLayout, mintTo } from "@solana/spl-token";
 import { assert } from "chai";
 
 describe("exchange", () => {
@@ -18,12 +18,14 @@ describe("exchange", () => {
   new anchor.Program(program.idl as anchor.Idl, newProvider)
 
   const connection = provider.connection;
-  const creator = payer;
+  const creator = anchor.web3.Keypair.generate();
+  const base = 1000_000_000;
   let tokenA: anchor.web3.PublicKey;
   let tokenB : anchor.web3.PublicKey;
   let tokenAMint : anchor.web3.PublicKey;
   let tokenBMint : anchor.web3.PublicKey;
-  let poolTokenRecieptAccount : anchor.web3.PublicKey;
+  let creatorPoolTokenReceipt : anchor.web3.PublicKey;
+  let userPoolTokenReceipt : anchor.web3.PublicKey;
   let poolFeeAccount: anchor.web3.PublicKey;
   let pool : anchor.web3.PublicKey;
   let poolMint : anchor.web3.PublicKey;
@@ -60,9 +62,13 @@ describe("exchange", () => {
     tokenA = (await getOrCreateAssociatedTokenAccount(connection, creator, tokenAMint, poolAuthority, true)).address;
     tokenB = (await getOrCreateAssociatedTokenAccount(connection, creator, tokenBMint, poolAuthority, true)).address;
 
+    await mintTo(connection, payer, tokenAMint, tokenA, creator, 1000*base);
+    await mintTo(connection, payer, tokenBMint, tokenB, creator, 1000*base);
+
     //fee and creator pool token receipt accounts
     poolFeeAccount = getAssociatedTokenAddressSync(poolMint, poolAuthority, true);
-    poolTokenRecieptAccount = (await getOrCreateAssociatedTokenAccount(connection, creator, poolMint, creator.publicKey, false)).address;
+    creatorPoolTokenReceipt = (await getOrCreateAssociatedTokenAccount(connection, creator, poolMint, creator.publicKey, false)).address;
+    userPoolTokenReceipt = (await getOrCreateAssociatedTokenAccount(connection, payer, poolMint, payer.publicKey, false)).address;
   })
 
   it("test initialize pool ok", async () => {
@@ -80,12 +86,12 @@ describe("exchange", () => {
       ownerTradeFeeDenominator,
       ownerWithdrawFeeNumerator,
       ownerWithdrawFeeDenomiator,
-    }).accounts({
+    }).accountsPartial({
       tokenA,
       tokenB,
       poolMint,
       poolFeeAccount,
-      poolTokenRecieptAccount,
+      userPoolTokenReceipt: creatorPoolTokenReceipt,
       creator: creator.publicKey
     }).signers([creator]).rpc({skipPreflight: true});
 
@@ -110,4 +116,47 @@ describe("exchange", () => {
 
     console.log("Your transaction signature", txSig);
   });
+
+  it("test deposit all tokens ok", async () => {
+    const tokenAAmount = await getTokenAmount(connection,tokenA);
+    const tokenBAmount = await getTokenAmount(connection,tokenB);
+
+    const poolMintInfo = await connection.getAccountInfo(poolMint);
+    const poolMintData = MintLayout.decode(new Uint8Array(poolMintInfo.data));
+
+    const poolTokenSupply = Number(poolMintData.supply);
+    const maxTokenA = 100*base;
+    const maxTokenB = 100*base;
+
+    const userTokenAAccount = (await getOrCreateAssociatedTokenAccount(connection, creator, tokenAMint, payer.publicKey, true)).address;
+    const userTokenBAccount = (await getOrCreateAssociatedTokenAccount(connection, creator, tokenBMint, payer.publicKey, true)).address;
+
+    await mintTo(connection, payer, tokenAMint, userTokenAAccount, creator, 200*base);
+    await mintTo(connection, payer, tokenBMint, userTokenBAccount, creator, 200*base);
+
+    const minPoolTokens = Math.min(((maxTokenA*poolTokenSupply)/tokenAAmount), ((maxTokenB*poolTokenSupply)/tokenBAmount)); 
+    const txSig = await program.methods.depositAllTokensIn(new BN(minPoolTokens), new BN(maxTokenA),  new BN(maxTokenB)).accountsPartial({
+      pool,
+      poolAuthority,
+      poolMint,
+      poolTokenAAccount: tokenA,
+      poolTokenBAccount: tokenB,
+      poolTokenFeeAccount: poolFeeAccount,
+      userPoolTokenReceipt,
+      userTokenAAccount,
+      userTokenBAccount,
+      user: payer.publicKey,
+    }).signers([payer]).rpc();
+
+    const userPoolTokenAmount = await getTokenAmount(connection,userPoolTokenReceipt);
+    assert.equal(userPoolTokenAmount, minPoolTokens);
+
+    console.log("Your transaction signature", txSig);
+  });
 });
+
+
+async function getTokenAmount(connection: anchor.web3.Connection, token: anchor.web3.PublicKey) {
+  const tokenInfo = await connection.getTokenAccountBalance(token);
+  return Number(tokenInfo.value.amount);
+}

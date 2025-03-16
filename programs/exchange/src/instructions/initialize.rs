@@ -61,7 +61,7 @@ pub struct InitializePool<'info> {
         token::authority = creator,
         token::mint = pool_mint
     )]
-    pub pool_token_reciept_account: Box<Account<'info, TokenAccount>>,
+    pub user_pool_token_receipt: Box<Account<'info, TokenAccount>>,
 
     #[account(
         init_if_needed,
@@ -119,7 +119,7 @@ pub fn initialize(ctx: Context<InitializePool>, fees: Fee) -> Result<()> {
 
     let cpi_accounts = MintTo {
         mint: pool_mint.to_account_info(),
-        to: ctx.accounts.pool_token_reciept_account.to_account_info(),
+        to: ctx.accounts.user_pool_token_receipt.to_account_info(),
         authority: pool_authority.to_account_info(),
     };
 

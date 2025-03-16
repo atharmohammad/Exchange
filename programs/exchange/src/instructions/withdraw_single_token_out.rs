@@ -36,20 +36,20 @@ pub struct WithdrawSingleToken<'info> {
     /// Non-zero token A account
     #[account(
         address=pool.token_a @ ExchangeError::InvalidPoolTokenAccount,
-        owner=pool_authority.key()
+        token::authority=pool_authority.key()
     )]
     pub pool_token_a_account: Account<'info, TokenAccount>,
 
     /// Non-zero token B account
     #[account(
         address=pool.token_b @ ExchangeError::InvalidPoolTokenAccount,
-        owner=pool_authority.key()
+        token::authority=pool_authority.key()
     )]
     pub pool_token_b_account: Account<'info, TokenAccount>,
 
     #[account(
         token::mint=source_mint,
-        owner=user.key()
+        token::authority=user.key()
     )]
     pub user_source_token_account: Account<'info, TokenAccount>,
 
@@ -58,9 +58,9 @@ pub struct WithdrawSingleToken<'info> {
 
     #[account(
         token::mint=pool_mint,
-        owner=user.key()
+        token::authority=user.key()
     )]
-    pub user_pool_token_account: Account<'info, TokenAccount>,
+    pub user_pool_token_receipt: Account<'info, TokenAccount>,
 
     #[account(
         address=pool.mint @ ExchangeError::InvalidMint,
@@ -85,7 +85,7 @@ pub fn withdraw_single_token_out(
     _fees: Fee,
 ) -> Result<()> {
     let pool = &ctx.accounts.pool;
-    let user_pool_token_account = &ctx.accounts.user_pool_token_account;
+    let user_pool_token_account = &ctx.accounts.user_pool_token_receipt;
     let source_mint_account = &ctx.accounts.source_mint;
     let pool_mint = &ctx.accounts.pool_mint;
 

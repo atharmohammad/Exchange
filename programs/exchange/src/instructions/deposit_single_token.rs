@@ -34,27 +34,27 @@ pub struct DepositSingleToken<'info> {
     /// Non-zero token A accoun
     #[account(
         address=pool.token_a @ ExchangeError::InvalidPoolTokenAccount,
-        owner=pool_authority.key()
+        token::authority=pool_authority.key()
     )]
     pub pool_token_a_account: Account<'info, TokenAccount>,
 
     /// Non-zero token B accoun
     #[account(
         address=pool.token_b @ ExchangeError::InvalidPoolTokenAccount,
-        owner=pool_authority.key()
+        token::authority=pool_authority.key()
     )]
     pub pool_token_b_account: Account<'info, TokenAccount>,
 
     #[account(
         token::mint=source_mint,
-        owner=user.key()
+        token::authority=user.key()
     )]
     pub user_source_token_account: Account<'info, TokenAccount>,
 
     pub source_mint: Account<'info, Mint>,
 
     #[account(token::mint=pool.mint)]
-    pub pool_token_recepient_account: Account<'info, TokenAccount>,
+    pub user_pool_token_receipt: Account<'info, TokenAccount>,
 
     #[account(
         address=pool.mint @ ExchangeError::InvalidMint,
@@ -130,7 +130,7 @@ pub fn deposit_single_token_in(ctx: Context<DepositSingleToken>, source_amount: 
     let signer = &[&signer_seeds[..]];
     // mint pool token propotional to deposited source amount
     let mint_pool_tokens_account = MintTo {
-        to: user_source_token_account.to_account_info(),
+        to: ctx.accounts.user_pool_token_receipt.to_account_info(),
         mint: ctx.accounts.pool_mint.to_account_info(),
         authority: ctx.accounts.pool_authority.to_account_info(),
     };
