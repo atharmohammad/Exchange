@@ -1,4 +1,5 @@
 use crate::errors::ExchangeError;
+use crate::instructions::TradeDirection;
 use crate::{
     constants::{AUTHORITY, PREFIX},
     Fee,
@@ -7,7 +8,6 @@ use crate::{curve::constant_product::*, Pool};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{burn, transfer, Burn, Mint, Token, TokenAccount, Transfer};
 use anchor_spl::token_interface::spl_token_2022::cmp_pubkeys;
-use crate::instructions::TradeDirection;
 
 #[derive(Accounts)]
 pub struct WithdrawSingleToken<'info> {

@@ -10,7 +10,7 @@ pub struct Pool {
     pub token_b_mint: Pubkey,
     pub mint: Pubkey,
     pub creator: Pubkey,
-    pub pool_fee_account: Pubkey,
+    pub fee_account: Pubkey,
     pub fees: Fee,
 }
 

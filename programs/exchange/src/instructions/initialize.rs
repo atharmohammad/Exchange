@@ -1,4 +1,4 @@
-use crate::constants::{AUTHORITY, POOL_MINT, PREFIX};
+use crate::constants::{AUTHORITY, PREFIX};
 use crate::errors::*;
 use crate::pool::Pool;
 use crate::Fee;
@@ -48,28 +48,28 @@ pub struct InitializePool<'info> {
     pub token_b: Box<Account<'info, TokenAccount>>,
 
     #[account(
-        init,
-        seeds=[
-            PREFIX, 
-            pool.key().as_ref(), 
-            POOL_MINT
-        ],
-        bump,
-        payer = creator,
+        mut,
         mint::authority = pool_authority,
         mint::freeze_authority = pool_authority,
-        mint::decimals = 9,
+        mint::decimals = 9
     )]
     pub pool_mint: Box<Account<'info, Mint>>,
 
     /// pool token reciept as per the token A|B input
     #[account(
-        init,
-        payer=creator,
-        associated_token::authority = creator,
-        associated_token::mint = pool_mint
+        mut,
+        token::authority = creator,
+        token::mint = pool_mint
     )]
     pub pool_token_reciept_account: Box<Account<'info, TokenAccount>>,
+
+    #[account(
+        init_if_needed,
+        payer=creator,
+        associated_token::authority = pool_authority,
+        associated_token::mint = pool_mint
+    )]
+    pub pool_fee_account: Box<Account<'info, TokenAccount>>,
 
     #[account(mut)]
     pub creator: Signer<'info>,
@@ -78,7 +78,7 @@ pub struct InitializePool<'info> {
 
     pub token_program: Program<'info, Token>,
 
-    pub associated_token_program: Program<'info, AssociatedToken>
+    pub associated_token_program: Program<'info, AssociatedToken>,
 }
 
 pub fn initialize(ctx: Context<InitializePool>, fees: Fee) -> Result<()> {
@@ -100,6 +100,7 @@ pub fn initialize(ctx: Context<InitializePool>, fees: Fee) -> Result<()> {
     pool.token_b_mint = ctx.accounts.token_b.mint;
     pool.mint = pool_mint.key();
     pool.creator = ctx.accounts.creator.key();
+    pool.fee_account = ctx.accounts.pool_fee_account.key();
 
     // todo: validate fees
 
