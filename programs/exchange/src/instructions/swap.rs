@@ -8,6 +8,7 @@ use anchor_spl::token_interface::spl_token_2022::cmp_pubkeys;
 
 #[derive(Accounts)]
 pub struct Swap<'info> {
+    /// CHECK: Account seeds checked in constraints
     #[account(
         seeds=[
             PREFIX,

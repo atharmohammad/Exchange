@@ -6,6 +6,7 @@ use anchor_spl::token::{mint_to, transfer, Mint, MintTo, Token, TokenAccount, Tr
 
 #[derive(Accounts)]
 pub struct DepositAllTokens<'info> {
+    /// CHECK: Account seeds checked in constraints
     #[account(
         seeds=[
             PREFIX,

@@ -7,11 +7,11 @@ use crate::{curve::constant_product::*, Pool};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{burn, transfer, Burn, Mint, Token, TokenAccount, Transfer};
 use anchor_spl::token_interface::spl_token_2022::cmp_pubkeys;
-
-use super::TradeDirection;
+use crate::instructions::TradeDirection;
 
 #[derive(Accounts)]
 pub struct WithdrawSingleToken<'info> {
+    /// CHECK: Account seeds checked in constraints
     #[account(
         seeds=[
             PREFIX,
@@ -33,14 +33,14 @@ pub struct WithdrawSingleToken<'info> {
     )]
     pub pool: Account<'info, Pool>,
 
-    /// Non-zero token A accoun
+    /// Non-zero token A account
     #[account(
         address=pool.token_a @ ExchangeError::InvalidPoolTokenAccount,
         owner=pool_authority.key()
     )]
     pub pool_token_a_account: Account<'info, TokenAccount>,
 
-    /// Non-zero token B accoun
+    /// Non-zero token B account
     #[account(
         address=pool.token_b @ ExchangeError::InvalidPoolTokenAccount,
         owner=pool_authority.key()

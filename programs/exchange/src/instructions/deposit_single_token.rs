@@ -9,6 +9,7 @@ use super::TradeDirection;
 
 #[derive(Accounts)]
 pub struct DepositSingleToken<'info> {
+    /// CHECK: Account seeds checked in constraints
     #[account(
         seeds=[
             PREFIX,

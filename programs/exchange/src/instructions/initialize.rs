@@ -5,6 +5,7 @@ use crate::Fee;
 
 use anchor_lang::prelude::*;
 use anchor_lang::Accounts;
+use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::mint_to;
 use anchor_spl::token::MintTo;
 use anchor_spl::token::Token;
@@ -25,8 +26,9 @@ pub struct InitializePool<'info> {
         payer=creator,
         space=Pool::MAX_SIZE
     )]
-    pub pool: Account<'info, Pool>,
+    pub pool: Box<Account<'info, Pool>>,
 
+    /// CHECK: Account seeds checked in constraints
     #[account(
         seeds=[
             PREFIX,
@@ -37,31 +39,37 @@ pub struct InitializePool<'info> {
     )]
     pub pool_authority: AccountInfo<'info>,
 
-    /// Non-zero token A accoun
-    #[account(owner=pool_authority.key())]
-    pub token_a: Account<'info, TokenAccount>,
+    /// Non-zero token A account
+    #[account(token::authority=pool_authority.key())]
+    pub token_a: Box<Account<'info, TokenAccount>>,
 
-    /// Non-zero token B accoun
-    #[account(owner=pool_authority.key())]
-    pub token_b: Account<'info, TokenAccount>,
+    /// Non-zero token B account
+    #[account(token::authority=pool_authority.key())]
+    pub token_b: Box<Account<'info, TokenAccount>>,
 
     #[account(
         init,
-        seeds=[PREFIX, pool.key().as_ref(), POOL_MINT],
-        payer=creator,
+        seeds=[
+            PREFIX, 
+            pool.key().as_ref(), 
+            POOL_MINT
+        ],
         bump,
+        payer = creator,
         mint::authority = pool_authority,
         mint::freeze_authority = pool_authority,
         mint::decimals = 9,
     )]
-    pub pool_mint: Account<'info, Mint>,
+    pub pool_mint: Box<Account<'info, Mint>>,
 
-    /// pool token reciept as per the token A|B inpu
-    #[account(token::mint=pool_mint)]
-    pub pool_token_reciept_account: Account<'info, TokenAccount>,
-
-    #[account(token::mint=pool_mint)]
-    pub pool_token_fee_account: Account<'info, TokenAccount>,
+    /// pool token reciept as per the token A|B input
+    #[account(
+        init,
+        payer=creator,
+        associated_token::authority = creator,
+        associated_token::mint = pool_mint
+    )]
+    pub pool_token_reciept_account: Box<Account<'info, TokenAccount>>,
 
     #[account(mut)]
     pub creator: Signer<'info>,
@@ -69,6 +77,8 @@ pub struct InitializePool<'info> {
     pub system_program: Program<'info, System>,
 
     pub token_program: Program<'info, Token>,
+
+    pub associated_token_program: Program<'info, AssociatedToken>
 }
 
 pub fn initialize(ctx: Context<InitializePool>, fees: Fee) -> Result<()> {
