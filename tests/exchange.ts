@@ -149,7 +149,13 @@ describe("exchange", () => {
     }).signers([payer]).rpc();
 
     const userPoolTokenAmount = await getTokenAmount(connection,userPoolTokenReceipt);
+    const newTokenAAmount = await getTokenAmount(connection,userTokenAAccount);
+    const newTokenBAmount = await getTokenAmount(connection,userTokenBAccount);
+
     assert.equal(userPoolTokenAmount, minPoolTokens);
+
+    assert(newTokenAAmount <= maxTokenA);
+    assert(newTokenBAmount <= maxTokenB);
 
     console.log("Your transaction signature", txSig);
   });
