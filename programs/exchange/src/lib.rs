@@ -42,9 +42,8 @@ pub mod exchange {
 
     pub fn withdraw_single_token_out(
         ctx: Context<WithdrawSingleToken>,
-        source_amount: u64,
-        fees: Fee,
+        source_amount: u64
     ) -> Result<()> {
-        instructions::withdraw_single_token_out(ctx, source_amount, fees)
+        instructions::withdraw_single_token_out(ctx, source_amount)
     }
 }
