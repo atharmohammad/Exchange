@@ -10,7 +10,7 @@ mod state;
 use instructions::*;
 use state::*;
 
-declare_id!("Dy9ZhqexLXRDZcw3nUubPEHmqNBBX72SvKeKykvGGEKZ");
+declare_id!("HndsTUfB2AZbQifHN9WdKMMQqXghGVwmak2gy3oyzwqV");
 
 #[program]
 pub mod exchange {

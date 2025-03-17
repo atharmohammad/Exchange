@@ -22,45 +22,56 @@ pub struct Swap<'info> {
     #[account(
         seeds=[
             PREFIX,
-            pool.token_a_mint.as_ref(),
-            pool.token_b_mint.as_ref(),
-            pool.creator.as_ref()
+            pool_token_a_account.mint.as_ref(),
+            pool_token_b_account.mint.as_ref(),
+            creator.key().as_ref()
         ],
         bump
     )]
     pub pool: Account<'info, Pool>,
 
-    /// Non-zero token A accoun
+    /// Non-zero token A account
     #[account(
+        mut,
         address=pool.token_a @ ExchangeError::InvalidPoolTokenAccount,
         token::authority=pool_authority.key()
     )]
     pub pool_token_a_account: Account<'info, TokenAccount>,
 
-    /// Non-zero token B accoun
+    /// Non-zero token B account
     #[account(
+        mut,
         address=pool.token_b @ ExchangeError::InvalidPoolTokenAccount,
         token::authority=pool_authority.key()
     )]
     pub pool_token_b_account: Account<'info, TokenAccount>,
 
-    #[account(token::authority=user.key())]
+    #[account(
+        mut,
+        token::authority=user.key()
+    )]
     pub user_source_token_account: Account<'info, TokenAccount>,
 
-    #[account(token::authority=user.key())]
+    #[account(
+        mut,
+        token::authority=user.key()
+    )]
     pub user_destination_token_account: Account<'info, TokenAccount>,
 
     #[account(
+        mut,
         address=pool.mint @ ExchangeError::InvalidMint,
-        owner=pool.key()
     )]
     pub pool_mint: Account<'info, Mint>,
 
-    #[account(token::mint=pool_mint)]
+    #[account(mut, address=pool.fee_account)]
     pub pool_token_fee_account: Account<'info, TokenAccount>,
 
     #[account(mut)]
     pub user: Signer<'info>,
+
+    /// CHECK: Checked in pool seeds
+    creator: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
 
@@ -160,7 +171,7 @@ pub fn swap(ctx: Context<Swap>, source_amount: u64) -> Result<()> {
         swapped_destination_amount as u64,
     )?;
 
-    // mint the pool_tokens propotional to owner_fee to pool_fee_accoun
+    // mint the pool_tokens propotional to owner_fee to pool_fee_account
     let pool_tokens = calculate_pool_tokens_propotional_to_single_token_redeemed(
         owner_fee,
         new_pool_source_amount,

@@ -20,6 +20,13 @@ describe("exchange", () => {
   const connection = provider.connection;
   const creator = anchor.web3.Keypair.generate();
   const base = 1000_000_000;
+  const tradeFeeNumerator = new BN(5);
+  const tradeFeeDenominator = new BN(100);
+  const ownerTradeFeeNumerator = new BN(2);
+  const ownerTradeFeeDenominator =  new BN(100);
+  const ownerWithdrawFeeNumerator = new BN(1);
+  const ownerWithdrawFeeDenomiator = new BN(100);
+
   let tokenA: anchor.web3.PublicKey;
   let tokenB : anchor.web3.PublicKey;
   let tokenAMint : anchor.web3.PublicKey;
@@ -72,13 +79,6 @@ describe("exchange", () => {
   })
 
   it("test initialize pool ok", async () => {
-    const tradeFeeNumerator = new BN(5);
-    const tradeFeeDenominator = new BN(100);
-    const ownerTradeFeeNumerator = new BN(2);
-    const ownerTradeFeeDenominator =  new BN(100);
-    const ownerWithdrawFeeNumerator = new BN(1);
-    const ownerWithdrawFeeDenomiator = new BN(100);
-
     const txSig = await program.methods.initialize({
       tradeFeeNumerator,
       tradeFeeDenominator,
@@ -146,6 +146,7 @@ describe("exchange", () => {
       userTokenAAccount,
       userTokenBAccount,
       user: payer.publicKey,
+      creator: creator.publicKey,
     }).signers([payer]).rpc();
 
     const userPoolTokenAmount = await getTokenAmount(connection,userPoolTokenReceipt);
@@ -159,6 +160,43 @@ describe("exchange", () => {
 
     console.log("Your transaction signature", txSig);
   });
+
+  it("test swap tokens ok", async() => {
+    const tokenASwapAmount = 20*base;
+    const userTokenAAccount = (await getOrCreateAssociatedTokenAccount(connection, creator, tokenAMint, payer.publicKey, true)).address;
+    const userTokenBAccount = (await getOrCreateAssociatedTokenAccount(connection, creator, tokenBMint, payer.publicKey, true)).address;
+
+    const oldPoolTokenAAmount = await getTokenAmount(connection, tokenA);
+    const oldPoolTokenBAmount = await getTokenAmount(connection, tokenB);
+
+    const ownerFee = (tokenASwapAmount * Number(ownerTradeFeeNumerator)) / Number(ownerTradeFeeDenominator);
+    const tradingFee = (tokenASwapAmount * Number(tradeFeeNumerator)) / Number(tradeFeeDenominator);
+    const tokenASwapAmountAfterFee = tokenASwapAmount - (ownerFee + tradingFee);
+    
+    const expectedTokenBSwapAmount = oldPoolTokenBAmount - (oldPoolTokenAAmount*oldPoolTokenBAmount)/(oldPoolTokenAAmount + tokenASwapAmountAfterFee);
+
+    const oldUserTokenBAmount = await getTokenAmount(connection, userTokenBAccount);
+    const txSig = await program.methods.swap(new BN(tokenASwapAmount)).accountsPartial({
+      pool,
+      poolAuthority,
+      poolMint,
+      poolTokenAAccount: tokenA,
+      poolTokenBAccount: tokenB,
+      poolTokenFeeAccount: poolFeeAccount,
+      userSourceTokenAccount: userTokenAAccount,
+      userDestinationTokenAccount: userTokenBAccount,
+      user: payer.publicKey,
+      creator: creator.publicKey,
+    }).signers([payer]).rpc();
+
+    const newPoolTokenAAmount = await getTokenAmount(connection, tokenA);
+    const newUserTokenBAmount = await getTokenAmount(connection, userTokenBAccount);
+
+    assert.equal(newPoolTokenAAmount, oldPoolTokenAAmount+tokenASwapAmount);
+    assert.equal(newUserTokenBAmount, Math.floor(oldUserTokenBAmount+expectedTokenBSwapAmount));
+
+    console.log("Your transaction signature", txSig);
+  })
 });
 
 

@@ -20,9 +20,9 @@ pub struct DepositAllTokens<'info> {
     #[account(
         seeds=[
             PREFIX,
-            pool.token_a_mint.as_ref(),
-            pool.token_b_mint.as_ref(),
-            pool.creator.as_ref()
+            pool_token_a_account.mint.as_ref(),
+            pool_token_b_account.mint.as_ref(),
+            creator.key().as_ref()
         ],
         bump
     )]
@@ -79,6 +79,9 @@ pub struct DepositAllTokens<'info> {
 
     #[account(mut)]
     pub user: Signer<'info>,
+
+    /// CHECK: Checked in pool seeds
+    creator: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
 
