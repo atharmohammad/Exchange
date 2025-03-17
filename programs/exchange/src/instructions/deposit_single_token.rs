@@ -23,29 +23,32 @@ pub struct DepositSingleToken<'info> {
     #[account(
         seeds=[
             PREFIX,
-            pool.token_a_mint.as_ref(),
-            pool.token_b_mint.as_ref(),
+            pool_token_a_account.mint.as_ref(),
+            pool_token_b_account.mint.as_ref(),
             pool.creator.as_ref()
         ],
         bump
     )]
     pub pool: Account<'info, Pool>,
 
-    /// Non-zero token A accoun
+    /// Non-zero token A account
     #[account(
+        mut,
         address=pool.token_a @ ExchangeError::InvalidPoolTokenAccount,
         token::authority=pool_authority.key()
     )]
     pub pool_token_a_account: Account<'info, TokenAccount>,
 
-    /// Non-zero token B accoun
+    /// Non-zero token B account
     #[account(
+        mut,
         address=pool.token_b @ ExchangeError::InvalidPoolTokenAccount,
         token::authority=pool_authority.key()
     )]
     pub pool_token_b_account: Account<'info, TokenAccount>,
 
     #[account(
+        mut,
         token::mint=source_mint,
         token::authority=user.key()
     )]
@@ -53,17 +56,17 @@ pub struct DepositSingleToken<'info> {
 
     pub source_mint: Account<'info, Mint>,
 
-    #[account(token::mint=pool.mint)]
+    #[account(
+        mut,
+        token::mint=pool.mint
+    )]
     pub user_pool_token_receipt: Account<'info, TokenAccount>,
 
     #[account(
-        address=pool.mint @ ExchangeError::InvalidMint,
-        owner=pool.key()
+        mut,
+        address=pool.mint @ ExchangeError::InvalidMint
     )]
     pub pool_mint: Account<'info, Mint>,
-
-    #[account(token::mint=pool.mint)]
-    pub pool_token_fee_account: Account<'info, TokenAccount>,
 
     #[account(mut)]
     pub user: Signer<'info>,

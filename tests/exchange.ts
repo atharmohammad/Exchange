@@ -358,11 +358,11 @@ describe("exchange", () => {
 
     assert.equal(
       newUserTokenAAmount,
-      Math.floor(oldUserTokenAAmount + tokenAWithdrawAmount)
+      Math.round(oldUserTokenAAmount + tokenAWithdrawAmount)
     );
     assert.equal(
       newUserPoolTokenAmount,
-      Math.floor(oldUserPoolTokenAmount - poolTokenPropotionalToWithdrawAmount)
+      Math.round(oldUserPoolTokenAmount - poolTokenPropotionalToWithdrawAmount)
     );
 
     console.log("Your transaction signature", txSig);
@@ -436,6 +436,74 @@ describe("exchange", () => {
     assert.equal(
       newUserTokenBAmount,
       Math.floor(oldUserTokenBAmount + expectedTokenBSwapAmount)
+    );
+
+    console.log("Your transaction signature", txSig);
+  });
+
+  it("test deposit single token ok", async () => {
+    const tokenBDepositAmount = 40 * base;
+    const userTokenBAccount = (
+      await getOrCreateAssociatedTokenAccount(
+        connection,
+        creator,
+        tokenBMint,
+        payer.publicKey,
+        true
+      )
+    ).address;
+    // P' = P * [sqrt((A'+ A) / A) - 1]
+
+    const oldUserTokenBAmount = await getTokenAmount(
+      connection,
+      userTokenBAccount
+    );
+    const oldUserPoolTokenAmount = await getTokenAmount(
+      connection,
+      userPoolTokenReceipt
+    );
+
+    const tokenBAmount = await getTokenAmount(connection, tokenB);
+    const poolMintInfo = await connection.getAccountInfo(poolMint);
+    const poolMintData = MintLayout.decode(new Uint8Array(poolMintInfo.data));
+
+    const poolTokenSupply = Number(poolMintData.supply);
+    const poolTokenPropotionalToDepositAmount =
+      poolTokenSupply *
+      (Math.sqrt((tokenBAmount + tokenBDepositAmount) / tokenBAmount) - 1);
+
+    const txSig = await program.methods
+      .depositSingleToken(new BN(tokenBDepositAmount))
+      .accountsPartial({
+        pool,
+        poolAuthority,
+        poolMint,
+        poolTokenAAccount: tokenA,
+        poolTokenBAccount: tokenB,
+        userPoolTokenReceipt,
+        userSourceTokenAccount: userTokenBAccount,
+        user: payer.publicKey,
+        sourceMint: tokenBMint,
+      })
+      .signers([payer])
+      .rpc();
+
+    const newUserTokenBAmount = await getTokenAmount(
+      connection,
+      userTokenBAccount
+    );
+    const newUserPoolTokenAmount = await getTokenAmount(
+      connection,
+      userPoolTokenReceipt
+    );
+
+    assert.equal(
+      newUserTokenBAmount,
+      oldUserTokenBAmount - tokenBDepositAmount
+    );
+    assert.equal(
+      newUserPoolTokenAmount - oldUserPoolTokenAmount,
+      Math.round(poolTokenPropotionalToDepositAmount)
     );
 
     console.log("Your transaction signature", txSig);

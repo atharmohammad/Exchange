@@ -1,5 +1,5 @@
-use crate::errors::ExchangeError;
 use crate::constants::{AUTHORITY, PREFIX};
+use crate::errors::ExchangeError;
 use crate::{curve::constant_product::*, Pool};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{burn, transfer, Burn, Mint, Token, TokenAccount, Transfer};
@@ -93,11 +93,18 @@ pub fn withdraw_single_token_out(
         return Err(ExchangeError::NotEnoughFunds.into());
     }
 
-    let (pool_source_token_account, _) = if cmp_pubkeys(&source_mint_account.key(), &pool.token_a_mint) {
-        (&ctx.accounts.pool_token_a_account, &ctx.accounts.pool_token_b_account)
-    } else {
-        (&ctx.accounts.pool_token_b_account, &ctx.accounts.pool_token_a_account)
-    };
+    let (pool_source_token_account, _) =
+        if cmp_pubkeys(&source_mint_account.key(), &pool.token_a_mint) {
+            (
+                &ctx.accounts.pool_token_a_account,
+                &ctx.accounts.pool_token_b_account,
+            )
+        } else {
+            (
+                &ctx.accounts.pool_token_b_account,
+                &ctx.accounts.pool_token_a_account,
+            )
+        };
 
     let burn_pool_token_amount = calculate_pool_tokens_propotional_to_single_token_redeemed(
         source_amount as u128,
